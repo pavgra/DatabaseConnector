@@ -189,6 +189,7 @@ findPathToJar <- function(name, pathToDriver) {
 #' }
 #' @export
 connect <- function(connectionDetails = NULL,
+                    useJtds = FALSE,
                     dbms = NULL,
                     user = NULL,
                     password = NULL,
@@ -209,11 +210,35 @@ connect <- function(connectionDetails = NULL,
                           extraSettings = connectionDetails$extraSettings,
                           oracleDriver = connectionDetails$oracleDriver,
                           connectionString = connectionDetails$connectionString,
-                          pathToDriver = connectionDetails$pathToDriver)
+                          pathToDriver = connectionDetails$pathToDriver,
+                          useJtds = useJtds)
     
     return(connection)
   }
   if (dbms == "sql server") {
+    if (useJtds) {
+      writeLines("Connecting using JTDS driver")
+
+      # I have been unable to get Microsoft's JDBC driver to connect when a domain needs to be specified,
+      # so using JTDS driver instead: (Note, JTDS has issues with dates, which it converts to VARCHAR), see
+      # https://sourceforge.net/p/jtds/bugs/679/
+      
+      pathToJar <- system.file("java", "jtds-1.3.1.jar", package = "DatabaseConnector")
+      driver <- getJbcDriverSingleton("net.sourceforge.jtds.jdbc.Driver", pathToJar)
+      writeLines("Warning: Using JTDS driver because a domain is specified. This may lead to problems. Try using integrated security instead.")
+      if (missing(connectionString) || is.null(connectionString)) {
+        if (!missing(port) && !is.null(port))
+        server <- paste(server, port, sep = ":")
+        connectionString <- paste("jdbc:jtds:sqlserver://", server, ";domain=", domain, sep = "")
+        if (!missing(extraSettings) && !is.null(extraSettings))
+        connectionString <- paste(connectionString, ";", extraSettings, sep = "")
+      }
+      connection <- connectUsingJdbcDriver(driver,
+                                            connectionString,
+                                            user = user,
+                                            password = password, 
+                                            dbms = dbms)
+    } else {
     jarPath <- findPathToJar("^sqljdbc.*\\.jar$", pathToDriver)
     driver <- getJbcDriverSingleton("com.microsoft.sqlserver.jdbc.SQLServerDriver", jarPath)
     if (missing(user) || is.null(user)) {
@@ -244,6 +269,7 @@ connect <- function(connectionDetails = NULL,
                                            user = user,
                                            password = password,
                                            dbms = dbms)
+    }
     }
     if (!missing(schema) && !is.null(schema)) {
       database <- strsplit(schema, "\\.")[[1]][1]
