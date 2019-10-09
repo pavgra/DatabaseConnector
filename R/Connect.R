@@ -65,7 +65,7 @@ createConnectionDetails <- function(dbms,
                                     extraSettings = NULL,
                                     oracleDriver = "thin",
                                     connectionString = NULL,
-                                    pathToDriver = getOption("pathToDriver")) {
+                                    pathToDriver = getOption("pathToDriver"), useJtds = FALSE) {
   # First: get default values:
   result <- list()
   for (name in names(formals(createConnectionDetails))) {
@@ -211,7 +211,7 @@ connect <- function(connectionDetails = NULL,
                           oracleDriver = connectionDetails$oracleDriver,
                           connectionString = connectionDetails$connectionString,
                           pathToDriver = connectionDetails$pathToDriver,
-                          useJtds = useJtds)
+                          useJtds = connectionDetails$useJtds)
     
     return(connection)
   }
